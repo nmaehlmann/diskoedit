@@ -1,0 +1,79 @@
+body {
+  background: #8076ed;
+  color: #ccc;
+  font-family: ubuntu, sans-serif;
+  font-size: 14px;
+  padding-top: 1em;
+  text-shadow: #000 3px 1px 3px;
+}
+
+h1 {
+  font-size: 4em;
+  margin: 0;
+  padding-bottom: 0.2em;
+}
+h2 {
+  margin-top: 1.3em;
+  padding-bottom: 0em;
+  margin-bottom:0;
+}
+.view-source { float: right }
+
+table {
+  border-collapse: collapse;
+}
+th, td, .table-row, .table-cell {
+  padding: 0px 0px 0px 0px;
+  margin: 0px 0px 0px 0px;
+
+
+  -moz-user-select: -moz-none;
+  -khtml-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+
+}
+
+.cloudTile {
+  background-image: url("cloud.png");
+}
+
+.solidTile {
+  background-image: url("solid.png");
+}
+
+.spikesTile {
+  background-image: url("spike.png");
+}
+
+.airTile {
+  background-image: url("air.png");
+}
+
+.superSolidTile {
+  background-image: url("superSolid.png");
+}
+
+.playerSpawnTile {
+  background-image: url("playerSpawn.png");
+}
+
+.itemTile {
+  background-image: url("item.png");
+}
+
+.tile {
+  background-color: #eee;
+  border-style: solid;
+  border-right-width: 0px;
+  border-top-width: 0px;
+  border-left-width: 0px;
+  border-bottom-width: 0px;
+}
+
+.center {
+    margin: auto;
+    border: 1px solid white;
+}
+
