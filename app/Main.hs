@@ -1,7 +1,6 @@
-{-# LANGUAGE TemplateHaskell, RankNTypes #-}
+{-# LANGUAGE RankNTypes #-}
 
 import Block
-import qualified Control.Lens as Lens
 import Control.Monad
 import qualified Data.Map as Map
 import qualified Graphics.UI.Threepenny as UI
@@ -12,18 +11,9 @@ import TMXParser
 
 tileSize = 10
 
-data AppState = AppState
-    { _mouseDown :: Bool
-    , _currentBlockType :: Block
-    , _level :: Level.Level
-    }
-
-Lens.makeLenses ''AppState
-
 data EditingTool
     = Pen
     | Rect
-    | Fill
     deriving (Show, Eq)
 
 tools = [Pen, Rect]
@@ -35,14 +25,13 @@ type TileSelectData = Block
 type RectSelection = (Maybe Level.CellPositionData, Maybe Level.CellPositionData)
 
 data EventCollection = EventCollection
-    { _mouseStatusHandler :: Handler MouseStatusData
-    , _mouseEnterHandler :: Handler Level.CellPositionData
-    , _tileSelectHandler :: Handler TileSelectData
-    , _toolSelectHandler :: Handler EditingTool
-    , _updateCellEvent :: Event ([Level.CellPositionData], Block)
+    { mouseStatusHandler :: Handler MouseStatusData
+    , mouseEnterHandler :: Handler Level.CellPositionData
+    , tileSelectHandler :: Handler TileSelectData
+    , toolSelectHandler :: Handler EditingTool
+    , updateCellEvent :: Event ([Level.CellPositionData], Block)
     }
 
-Lens.makeLenses ''EventCollection
 
 main :: IO ()
 main = do
@@ -82,11 +71,11 @@ setup w =
         eventCollection <-
             return
                 EventCollection
-                    { _mouseStatusHandler = mouseStatusEventHandler
-                    , _mouseEnterHandler = mouseEnterEventHandler
-                    , _tileSelectHandler = tileSelectEventHandler
-                    , _toolSelectHandler = toolSelectEventHandler
-                    , _updateCellEvent = editCellDataEvent
+                    { mouseStatusHandler = mouseStatusEventHandler
+                    , mouseEnterHandler = mouseEnterEventHandler
+                    , tileSelectHandler = tileSelectEventHandler
+                    , toolSelectHandler = toolSelectEventHandler
+                    , updateCellEvent = editCellDataEvent
                     }
         btnSave <- UI.button # set text "save"
         on UI.click btnSave $ \_ ->
@@ -124,11 +113,11 @@ mkCell :: EventCollection -> (Int, Int) -> UI Element
 mkCell eventCollection cellPos = do
     cell <- UI.td # set UI.height tileSize # set UI.width tileSize #. "tile" #. (toCss Air)
     on UI.mousedown cell $ \_ -> do
-        liftIO $ (Lens.view mouseStatusHandler eventCollection) True
-        liftIO $ (Lens.view mouseEnterHandler eventCollection) cellPos
-    on UI.mouseup cell $ \_ -> liftIO $ (Lens.view mouseStatusHandler eventCollection) False
-    on UI.hover cell $ \_ -> liftIO $ (Lens.view mouseEnterHandler eventCollection) cellPos
-    onEvent (Lens.view updateCellEvent eventCollection) $ \(eventPositions, blockType) -> do
+        liftIO $ (mouseStatusHandler eventCollection) True
+        liftIO $ (mouseEnterHandler eventCollection) cellPos
+    on UI.mouseup cell $ \_ -> liftIO $ (mouseStatusHandler eventCollection) False
+    on UI.hover cell $ \_ -> liftIO $ (mouseEnterHandler eventCollection) cellPos
+    onEvent (updateCellEvent eventCollection) $ \(eventPositions, blockType) -> do
         when (elem cellPos eventPositions) $ void $ (element cell) #. (toCss blockType)
     return cell
 
@@ -138,7 +127,7 @@ mkTileButtons eventCollection = map (mkTileButton eventCollection) allBlocks
 mkTileButton :: EventCollection -> Block -> UI Element
 mkTileButton eventCollection blockType = do
     btn <- UI.canvas # set UI.height (tileSize * 3) # set UI.width (tileSize * 3) #. toCss blockType
-    on UI.click btn $ \_ -> liftIO $ (Lens.view tileSelectHandler eventCollection) blockType
+    on UI.click btn $ \_ -> liftIO $ (tileSelectHandler eventCollection) blockType
     return btn
 
 mkToolButtons :: EventCollection -> [UI Element]
@@ -147,7 +136,7 @@ mkToolButtons eventCollection = map (mkToolButton eventCollection) tools
 mkToolButton :: EventCollection -> EditingTool -> UI Element
 mkToolButton eventCollection tool = do
     btn <- UI.button # set text (show tool)
-    on UI.click btn $ \_ -> liftIO $ (Lens.view toolSelectHandler eventCollection) tool
+    on UI.click btn $ \_ -> liftIO $ (toolSelectHandler eventCollection) tool
     return btn
 
 mergeEvents :: [Event a] -> Event a
