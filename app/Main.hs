@@ -1,10 +1,10 @@
 {-# LANGUAGE RankNTypes #-}
 
-import Block
 import Control.Monad
 import qualified Data.Map as Map
 import qualified Graphics.UI.Threepenny as UI
 import Graphics.UI.Threepenny.Core
+import Block
 import qualified Level
 import qualified PNGExporter
 import TMXParser
@@ -23,6 +23,8 @@ type MouseStatusData = Bool
 type TileSelectData = Block
 
 type RectSelection = (Maybe Level.CellPositionData, Maybe Level.CellPositionData)
+
+type UpdateCells = ([Level.CellPositionData], Block)
 
 data EventCollection = EventCollection
     { mouseStatusHandler :: Handler MouseStatusData
@@ -90,7 +92,8 @@ setup w =
                 forM_ (toUpdates (dropSpaces lvlFile)) loadEventHandler
         return w # set title "Editor"
         UI.addStyleSheet w "editor.css"
-        getBody w #+ [mkTable eventCollection] #+ mkTileButtons eventCollection #+ [return btnLoad, return btnSave] #+
+        cellPreparer <- return (createCellPreparer mouseStatusEventHandler mouseEnterEventHandler editCellDataEvent)
+        getBody w #+ [mkTable cellPreparer] #+ mkTileButtons eventCollection #+ [return btnLoad, return btnSave] #+
             mkToolButtons eventCollection
         flushCallBuffer
 
@@ -103,21 +106,28 @@ toEditCellData2 b p = (p, b)
 editLevel :: Level.CellUpdate -> Level.Level -> Level.Level
 editLevel (cellPositions, blockType) lvl = foldr (\singelPos -> Map.insert singelPos blockType) lvl cellPositions
 
-mkTable :: EventCollection -> UI Element
+mkTable :: CellPreparer -> UI Element
 mkTable eventCollection = UI.table #+ map (\y -> mkTableRow eventCollection y) [0 .. Level.height - 1]
 
-mkTableRow :: EventCollection -> Int -> UI Element
+mkTableRow :: CellPreparer -> Int -> UI Element
 mkTableRow eventCollection y = UI.tr #+ map (\x -> mkCell eventCollection (x, y)) [0 .. Level.width - 1]
 
-mkCell :: EventCollection -> (Int, Int) -> UI Element
-mkCell eventCollection cellPos = do
+mkCell :: CellPreparer -> (Int, Int) -> UI Element
+mkCell cellPreparer cellPos = do
     cell <- UI.td # set UI.height tileSize # set UI.width tileSize #. "tile" #. (toCss Air)
+    cellPreparer cell cellPos
+
+
+type CellPreparer = Element -> (Int, Int) -> UI Element
+
+createCellPreparer :: Handler MouseStatusData -> Handler Level.CellPositionData -> Event UpdateCells -> CellPreparer
+createCellPreparer mouseStatusHandler mousePositionHandler updateEvent = \cell cellPos -> do
     on UI.mousedown cell $ \_ -> do
-        liftIO $ (mouseStatusHandler eventCollection) True
-        liftIO $ (mouseEnterHandler eventCollection) cellPos
-    on UI.mouseup cell $ \_ -> liftIO $ (mouseStatusHandler eventCollection) False
-    on UI.hover cell $ \_ -> liftIO $ (mouseEnterHandler eventCollection) cellPos
-    onEvent (updateCellEvent eventCollection) $ \(eventPositions, blockType) -> do
+        liftIO $ mouseStatusHandler True
+        liftIO $ mousePositionHandler cellPos
+    on UI.mouseup cell $ \_ -> liftIO $ mouseStatusHandler False
+    on UI.hover cell $ \_ -> liftIO $ mousePositionHandler cellPos
+    onEvent updateEvent $ \(eventPositions, blockType) -> do
         when (elem cellPos eventPositions) $ void $ (element cell) #. (toCss blockType)
     return cell
 
@@ -157,3 +167,5 @@ accumRectSelection newPos _ = ((Just newPos), Nothing)
 
 calculateCellPositionsFromEvent :: RectSelection -> Maybe [Level.CellPositionData]
 calculateCellPositionsFromEvent (p1, p2) = calculateCellPositions <$> p1 <*> p2
+
+
