@@ -1,12 +1,10 @@
 module TMXParser where
 
 import Text.Parsec
-import Text.Parsec.String
-import Text.Parsec.Char
 import Text.ParserCombinators.Parsec.Number
-import Data.Char
 import Data.List
 import LevelData
+import Block
 
 allTiles = normString tMXprefix >> manyTill tileParser (try (normString tMXpostfix))
 
@@ -18,18 +16,18 @@ tMXpostfix = "</data>"
 toUpdates :: String -> [CellUpdate]
 toUpdates lvlFile = map merge groupedTiles
     where (Right tileList) = parse allTiles "" (dropSpaces lvlFile)
-          indexedTileList = zip (map toBlockType tileList) allCellPositions 
+          indexedTileList = zip (map fromBlockNumber tileList) allCellPositions 
           groupedTiles = groupBy (\x y -> fst x == fst y) indexedTileList
 
 normString = string . dropSpaces
 
-merge :: [(BlockType, CellPositionData)] -> CellUpdate
+merge :: [(Block, CellPositionData)] -> CellUpdate
 merge ((b,p):pairs) = (p : map snd pairs,b)
 
 toTMX :: Level -> String
 toTMX lvl = tMXprefix ++ tiles  ++ tMXpostfix
     where tiles = concatMap toTile allCellPositions
-          toTile pos = "<tile gid=\"" ++ show (toId (getBlock pos lvl)) ++ "\"/>\n"
+          toTile pos = "<tile gid=\"" ++ show (toBlockNumber (getBlock pos lvl)) ++ "\"/>\n"
 
 dropSpaces :: String -> String
 dropSpaces = filter (\c -> c /= ' ' && c /= '\r' && c/= '\n')

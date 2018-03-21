@@ -9,14 +9,15 @@ import qualified Graphics.UI.Threepenny as UI
 import Graphics.UI.Threepenny.Core
 import Codec.Picture
 import Codec.Picture.Types
-import LevelData
+import qualified LevelData
+import qualified Block
 import TMXParser
 
 
 
 tileSize = 10
 
-data AppState = AppState {_mouseDown :: Bool, _currentBlockType :: BlockType, _level :: Level}
+data AppState = AppState {_mouseDown :: Bool, _currentBlockType :: Block.Block, _level :: LevelData.Level}
 Lens.makeLenses ''AppState
 
 data EditingTool = Pen | Rect | Fill
@@ -24,15 +25,15 @@ data EditingTool = Pen | Rect | Fill
 tools = [Pen,Rect]
 
 type MouseStatusData = Bool
-type TileSelectData = BlockType
-type RectSelection = (Maybe CellPositionData, Maybe CellPositionData)
+type TileSelectData = Block.Block
+type RectSelection = (Maybe LevelData.CellPositionData, Maybe LevelData.CellPositionData)
 
 data EventCollection = EventCollection {
     _mouseStatusHandler :: Handler MouseStatusData,
-    _mouseEnterHandler :: Handler CellPositionData,
+    _mouseEnterHandler :: Handler LevelData.CellPositionData,
     _tileSelectHandler :: Handler TileSelectData,
     _toolSelectHandler :: Handler EditingTool,
-    _updateCellEvent :: Event ([CellPositionData], BlockType)  }
+    _updateCellEvent :: Event ([LevelData.CellPositionData], Block.Block)  }
 Lens.makeLenses ''EventCollection
 
 main :: IO ()
@@ -50,7 +51,7 @@ setup w = void $ do
     (toolSelectEvent, toolSelectEventHandler) <- liftIO $ newEvent
     (loadEvent, loadEventHandler) <- liftIO $ newEvent
 
-    selectedTileBehaviour <- stepper Solid tileSelectEvent
+    selectedTileBehaviour <- stepper Block.Solid tileSelectEvent
     selectedToolBehaviour <- stepper Pen toolSelectEvent
     mouseStatusBehavior <- stepper False mouseStatusEvent
 
@@ -62,11 +63,11 @@ setup w = void $ do
     
     editCellDataEvent <- return $ mergeEvents [rectEditEvent, penEditEvent, loadEvent]
 
-    accumulatedLevelUpdate <- accumE emptyLevel $ (pure editLevel) <@> editCellDataEvent
+    accumulatedLevelUpdate <- accumE LevelData.empty $ (pure editLevel) <@> editCellDataEvent
     
-    currentLevelBehaviour <- stepper emptyLevel accumulatedLevelUpdate
+    currentLevelBehaviour <- stepper LevelData.empty accumulatedLevelUpdate
     
-    onEvent tileSelectEvent $ \tile -> do liftIO $ putStrLn $ toName tile
+    onEvent tileSelectEvent $ \tile -> do liftIO $ putStrLn $ Block.toCss tile
     
     eventCollection <- return EventCollection {_mouseStatusHandler = mouseStatusEventHandler,
         _mouseEnterHandler = mouseEnterEventHandler,
@@ -96,20 +97,20 @@ setup w = void $ do
     flushCallBuffer
  
 
-toEditCellData :: BlockType -> CellPositionData -> CellUpdate
+toEditCellData :: Block.Block -> LevelData.CellPositionData -> LevelData.CellUpdate
 toEditCellData b p = ([p],b)
 
-toEditCellData2 :: BlockType -> [CellPositionData] -> CellUpdate
+toEditCellData2 :: Block.Block -> [LevelData.CellPositionData] -> LevelData.CellUpdate
 toEditCellData2 b p = (p,b)
 
-editLevel ::  CellUpdate -> Level -> Level
+editLevel ::  LevelData.CellUpdate -> LevelData.Level -> LevelData.Level
 editLevel (cellPositions, blockType) lvl = foldr (\singelPos -> M.insert singelPos blockType) lvl cellPositions
 
 mkTable :: EventCollection-> UI Element
-mkTable eventCollection =  UI.table #+ map (\y -> mkTableRow eventCollection y) [0..mapHeight-1]
+mkTable eventCollection =  UI.table #+ map (\y -> mkTableRow eventCollection y) [0..LevelData.height-1]
 
 mkTableRow :: EventCollection -> Int -> UI Element    
-mkTableRow eventCollection y = UI.tr #+ map (\x -> mkCell eventCollection (x,y)) [0..mapWidth-1]
+mkTableRow eventCollection y = UI.tr #+ map (\x -> mkCell eventCollection (x,y)) [0..LevelData.width-1]
 
 mkCell :: EventCollection -> (Int,Int) -> UI Element
 mkCell eventCollection cellPos = do 
@@ -117,7 +118,7 @@ mkCell eventCollection cellPos = do
         # set UI.height tileSize
         # set UI.width  tileSize
         #. "tile"
-        #. (toCss Air)
+        #. (Block.toCss Block.Air)
         
     on UI.mousedown cell $ \_ -> do 
         liftIO $ (Lens.view mouseStatusHandler eventCollection) True
@@ -125,19 +126,19 @@ mkCell eventCollection cellPos = do
     on UI.mouseup cell $ \_ -> liftIO $ (Lens.view mouseStatusHandler eventCollection) False
     on UI.hover cell $ \_ -> liftIO $ (Lens.view mouseEnterHandler eventCollection) cellPos
     onEvent (Lens.view updateCellEvent eventCollection) $ \(eventPositions, blockType) -> do
-        when (elem cellPos eventPositions) $ void $ (element cell) #. (toCss blockType)
+        when (elem cellPos eventPositions) $ void $ (element cell) #. (Block.toCss blockType)
             
     return cell
                 
 mkTileButtons :: EventCollection -> [UI Element]
-mkTileButtons eventCollection = map (mkTileButton eventCollection) blocks
+mkTileButtons eventCollection = map (mkTileButton eventCollection) Block.allBlocks
 
-mkTileButton :: EventCollection -> BlockType -> UI Element
+mkTileButton :: EventCollection -> Block.Block -> UI Element
 mkTileButton eventCollection blockType = do
     btn <- UI.canvas 
         # set UI.height (tileSize*3)
         # set UI.width  (tileSize*3)
-        #.toCss blockType
+        #. Block.toCss blockType
     on UI.click btn $ \_ -> liftIO $ (Lens.view tileSelectHandler eventCollection) blockType
     return btn
 
@@ -150,21 +151,21 @@ mkToolButton eventCollection tool = do
     on UI.click btn $ \_ -> liftIO $ (Lens.view toolSelectHandler eventCollection) tool
     return btn
 
-toPNG :: (M.Map BlockType (Image PixelRGB8)) -> Level -> (Image PixelRGB8)
-toPNG mapping lvl = generateImage (f mapping lvl) (mapWidth * 10) (mapHeight * 10)
+toPNG :: (M.Map Block.Block (Image PixelRGB8)) -> LevelData.Level -> (Image PixelRGB8)
+toPNG mapping lvl = generateImage (f mapping lvl) (LevelData.width * 10) (LevelData.height * 10)
 
-f :: (Pixel p) => (M.Map BlockType (Image p)) -> Level -> Int -> Int -> p
+f :: (Pixel p) => (M.Map Block.Block (Image p)) -> LevelData.Level -> Int -> Int -> p
 f mapping lvl x y = pixelAt (fromJust (M.lookup blockType mapping)) srcX srcY
-    where blockType = getBlock (blockX,blockY) lvl
+    where blockType = LevelData.getBlock (blockX,blockY) lvl
           blockX = div x 10
           blockY = div y 10 
           srcX = mod x 10
           srcY = mod y 10
 
-loadTileImages :: IO (M.Map BlockType (Image PixelRGB8))
-loadTileImages = foldM (\mapping b -> loadTileImage mapping b (toPath b)) M.empty blocks
+loadTileImages :: IO (M.Map Block.Block (Image PixelRGB8))
+loadTileImages = foldM (\mapping b -> loadTileImage mapping b (Block.toPath b)) M.empty Block.allBlocks
 
-loadTileImage :: (M.Map BlockType (Image PixelRGB8)) -> BlockType -> FilePath -> IO (M.Map BlockType (Image PixelRGB8))
+loadTileImage :: (M.Map Block.Block (Image PixelRGB8)) -> Block.Block -> FilePath -> IO (M.Map Block.Block (Image PixelRGB8))
 loadTileImage mapping blockType path = do
     (Right (ImageRGB8 img@(Image w h _))) <- readImage ("static/css/" ++ path)
     return $ M.insert blockType img mapping
@@ -175,14 +176,14 @@ mergeEvents = foldr (unionWith pickFirst) never
 pickFirst :: a -> a -> a
 pickFirst a _ = a
 
-calculateCellPositions :: CellPositionData -> CellPositionData -> [CellPositionData]
+calculateCellPositions :: LevelData.CellPositionData -> LevelData.CellPositionData -> [LevelData.CellPositionData]
 calculateCellPositions (x1,y1) (x2,y2) = [(x,y) | x <- fromTo (min x1 x2) (max x1 x2), y <- fromTo (min y1 y2) (max y1 y2)]
     where fromTo a b = take (b - a + 1) [a..]
 
-accumRectSelection :: CellPositionData -> RectSelection -> RectSelection
+accumRectSelection :: LevelData.CellPositionData -> RectSelection -> RectSelection
 accumRectSelection newPos ((Just x), Nothing) = ((Just x), (Just newPos))
 accumRectSelection newPos _ = ((Just newPos), Nothing)
 
-calculateCellPositionsFromEvent :: RectSelection -> Maybe [CellPositionData]
+calculateCellPositionsFromEvent :: RectSelection -> Maybe [LevelData.CellPositionData]
 calculateCellPositionsFromEvent (p1,p2) = calculateCellPositions <$> p1 <*> p2
 
