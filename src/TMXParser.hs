@@ -3,7 +3,7 @@ module TMXParser where
 import Text.Parsec
 import Text.ParserCombinators.Parsec.Number
 import Data.List
-import LevelData
+import Level
 import Block
 
 allTiles = normString tMXprefix >> manyTill tileParser (try (normString tMXpostfix))

@@ -1,5 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
-module LevelData where
+module Level where
 
 import qualified Data.Map as Map
 import Data.Maybe
