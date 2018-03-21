@@ -52,7 +52,7 @@ setup w = do
     mouseDown <- stepper False mouseStatusEvent
 
     accumulatedRectSelection <-
-        accumE (Nothing, Nothing) $
+        accumE NoBoundSpecified $
         pure accumRectSelection <@>
         (whenE mouseDown (whenE (pure (== Rect) <*> selectedTool) mouseEnterEvent))
     cellRectEvent <- return $ filterJust $ apply (pure calculateCellPositionsFromEvent) accumulatedRectSelection
@@ -127,10 +127,11 @@ calculateCellPositions (x1, y1) (x2, y2) =
     fromTo a b = take (b - a + 1) [a ..]
 
 accumRectSelection :: Level.CellPosition -> RectSelection -> RectSelection
-accumRectSelection newPos ((Just x), Nothing) = ((Just x), (Just newPos))
-accumRectSelection newPos _ = ((Just newPos), Nothing)
+accumRectSelection bound2 (OneBoundSpecified bound1) = BothBoundsSpecified bound1 bound2
+accumRectSelection bound _ = OneBoundSpecified bound
 
 calculateCellPositionsFromEvent :: RectSelection -> Maybe [Level.CellPosition]
-calculateCellPositionsFromEvent (p1, p2) = calculateCellPositions <$> p1 <*> p2
+calculateCellPositionsFromEvent (BothBoundsSpecified b1 b2) = Just (calculateCellPositions b1 b2)
+calculateCellPositionsFromEvent _ = Nothing
 
 
