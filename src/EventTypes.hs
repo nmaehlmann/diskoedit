@@ -12,3 +12,4 @@ data RectSelection
     | OneBoundSpecified Level.CellPosition
     | BothBoundsSpecified Level.CellPosition
                           Level.CellPosition
+        

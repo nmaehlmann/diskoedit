@@ -18,9 +18,8 @@ data EditingTool
     | Rect
     deriving (Show, Eq)
 
-tools = [Pen, Rect]
-
-
+allTools :: [EditingTool]    
+allTools = [Pen, Rect]
 
 main :: IO ()
 main = do
@@ -51,24 +50,26 @@ setup w = do
     -- behavior representing the mouse status
     mouseDown <- stepper False mouseStatusEvent
 
-    accumulatedRectSelection <-
-        accumE NoBoundSpecified $
-        pure accumRectSelection <@>
-        (whenE mouseDown (whenE (pure (== Rect) <*> selectedTool) mouseEnterEvent))
-    cellRectEvent <- return $ filterJust $ apply (pure calculateCellPositionsFromEvent) accumulatedRectSelection
+    -- an event firing in case of a rectange edit carrying a list of cell positions
     rectEditEvent <-
-        return $
+        fmap (fmap rectangleToPositions) $
+        accumE NoBoundSpecified $
+        fmap accumRectangle $
         whenE mouseDown $
-        whenE (pure (== Rect) <*> selectedTool) $
-        pure toEditCellData2 <*> selectedTile <@> cellRectEvent
+        whenE (selectedTool `isTool` Rect) mouseEnterEvent
+
+    -- an event firing in case of a pen edit carrying a list of cell positions
     penEditEvent <-
         return $
+        fmap singleton $
         whenE mouseDown $
-        whenE (pure (== Pen) <*> selectedTool) $
-        pure toEditCellData <*> selectedTile <@> mouseEnterEvent
-    
+        whenE (selectedTool `isTool` Pen) mouseEnterEvent        
+
+    -- merges pen and rectangle edits and adds the currently selected tile
+    userEditEvent <- return $ positionsToLevelUpdate <$> selectedTile <@> (mergeEvents [penEditEvent, rectEditEvent])
+
     -- event 
-    levelUpdateEvent  <- return $ mergeEvents [rectEditEvent, penEditEvent, loadEvent]
+    levelUpdateEvent  <- return $ filterE (not . null) $ mergeEvents [userEditEvent, loadEvent]
     
     -- behaviour representing the level which is currently edited
     currentLevel <- accumB Level.empty $ (pure Level.editLevel) <@> levelUpdateEvent
@@ -90,11 +91,11 @@ setup w = do
         mkToolButtons toolSelectEventHandler
     flushCallBuffer
 
-toEditCellData :: Block -> Level.CellPosition -> Level.LevelUpdate
-toEditCellData b p = ([p], b)
+singleton :: a -> [a]
+singleton = pure
 
-toEditCellData2 :: Block -> [Level.CellPosition] -> Level.LevelUpdate
-toEditCellData2 b p = (p, b)
+positionsToLevelUpdate :: Block -> [Level.CellPosition] -> Level.LevelUpdate
+positionsToLevelUpdate b p = (p, b)
 
 mkTileButtons :: Handler TileSelectData -> [UI Element]
 mkTileButtons tileSelectHandler = map (mkTileButton tileSelectHandler) allBlocks
@@ -106,7 +107,7 @@ mkTileButton tileSelectHandler blockType = do
     return btn
 
 mkToolButtons :: Handler EditingTool -> [UI Element]
-mkToolButtons toolSelectHandler = map (mkToolButton toolSelectHandler) tools
+mkToolButtons toolSelectHandler = map (mkToolButton toolSelectHandler) allTools
 
 mkToolButton :: Handler EditingTool -> EditingTool -> UI Element
 mkToolButton toolSelectHandler tool = do
@@ -116,22 +117,21 @@ mkToolButton toolSelectHandler tool = do
 
 mergeEvents :: [Event a] -> Event a
 mergeEvents = foldr (unionWith pickFirst) never
+    where pickFirst x _ = x
 
-pickFirst :: a -> a -> a
-pickFirst a _ = a
-
-calculateCellPositions :: Level.CellPosition -> Level.CellPosition -> [Level.CellPosition]
-calculateCellPositions (x1, y1) (x2, y2) =
+boundsToPositions :: Level.CellPosition -> Level.CellPosition -> [Level.CellPosition]
+boundsToPositions (x1, y1) (x2, y2) =
     [(x, y) | x <- fromTo (min x1 x2) (max x1 x2), y <- fromTo (min y1 y2) (max y1 y2)]
   where
     fromTo a b = take (b - a + 1) [a ..]
 
-accumRectSelection :: Level.CellPosition -> RectSelection -> RectSelection
-accumRectSelection bound2 (OneBoundSpecified bound1) = BothBoundsSpecified bound1 bound2
-accumRectSelection bound _ = OneBoundSpecified bound
+accumRectangle :: Level.CellPosition -> RectSelection -> RectSelection
+accumRectangle bound2 (OneBoundSpecified bound1) = BothBoundsSpecified bound1 bound2
+accumRectangle bound _ = OneBoundSpecified bound
 
-calculateCellPositionsFromEvent :: RectSelection -> Maybe [Level.CellPosition]
-calculateCellPositionsFromEvent (BothBoundsSpecified b1 b2) = Just (calculateCellPositions b1 b2)
-calculateCellPositionsFromEvent _ = Nothing
+rectangleToPositions :: RectSelection -> [Level.CellPosition]
+rectangleToPositions (BothBoundsSpecified b1 b2) = boundsToPositions b1 b2
+rectangleToPositions _ = []
 
 
+selectedTool `isTool` tool = fmap (== tool) selectedTool 
