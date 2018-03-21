@@ -26,15 +26,6 @@ type RectSelection = (Maybe Level.CellPositionData, Maybe Level.CellPositionData
 
 type UpdateCells = ([Level.CellPositionData], Block)
 
-data EventCollection = EventCollection
-    { mouseStatusHandler :: Handler MouseStatusData
-    , mouseEnterHandler :: Handler Level.CellPositionData
-    , tileSelectHandler :: Handler TileSelectData
-    , toolSelectHandler :: Handler EditingTool
-    , updateCellEvent :: Event ([Level.CellPositionData], Block)
-    }
-
-
 main :: IO ()
 main = do
     static <- return "static"
@@ -70,15 +61,7 @@ setup w =
         accumulatedLevelUpdate <- accumE Level.empty $ (pure editLevel) <@> editCellDataEvent
         currentLevelBehaviour <- stepper Level.empty accumulatedLevelUpdate
         onEvent tileSelectEvent $ \tile -> do liftIO $ putStrLn $ toCss tile
-        eventCollection <-
-            return
-                EventCollection
-                    { mouseStatusHandler = mouseStatusEventHandler
-                    , mouseEnterHandler = mouseEnterEventHandler
-                    , tileSelectHandler = tileSelectEventHandler
-                    , toolSelectHandler = toolSelectEventHandler
-                    , updateCellEvent = editCellDataEvent
-                    }
+
         btnSave <- UI.button # set text "save"
         on UI.click btnSave $ \_ ->
             liftIO $ do
@@ -93,8 +76,8 @@ setup w =
         return w # set title "Editor"
         UI.addStyleSheet w "editor.css"
         cellPreparer <- return (createCellPreparer mouseStatusEventHandler mouseEnterEventHandler editCellDataEvent)
-        getBody w #+ [mkTable cellPreparer] #+ mkTileButtons eventCollection #+ [return btnLoad, return btnSave] #+
-            mkToolButtons eventCollection
+        getBody w #+ [mkTable cellPreparer] #+ mkTileButtons tileSelectEventHandler #+ [return btnLoad, return btnSave] #+
+            mkToolButtons toolSelectEventHandler
         flushCallBuffer
 
 toEditCellData :: Block -> Level.CellPositionData -> Level.CellUpdate
@@ -131,22 +114,22 @@ createCellPreparer mouseStatusHandler mousePositionHandler updateEvent = \cell c
         when (elem cellPos eventPositions) $ void $ (element cell) #. (toCss blockType)
     return cell
 
-mkTileButtons :: EventCollection -> [UI Element]
-mkTileButtons eventCollection = map (mkTileButton eventCollection) allBlocks
+mkTileButtons :: Handler TileSelectData -> [UI Element]
+mkTileButtons tileSelectHandler = map (mkTileButton tileSelectHandler) allBlocks
 
-mkTileButton :: EventCollection -> Block -> UI Element
-mkTileButton eventCollection blockType = do
+mkTileButton :: Handler TileSelectData -> Block -> UI Element
+mkTileButton tileSelectHandler blockType = do
     btn <- UI.canvas # set UI.height (tileSize * 3) # set UI.width (tileSize * 3) #. toCss blockType
-    on UI.click btn $ \_ -> liftIO $ (tileSelectHandler eventCollection) blockType
+    on UI.click btn $ \_ -> liftIO $ tileSelectHandler blockType
     return btn
 
-mkToolButtons :: EventCollection -> [UI Element]
-mkToolButtons eventCollection = map (mkToolButton eventCollection) tools
+mkToolButtons :: Handler EditingTool -> [UI Element]
+mkToolButtons toolSelectHandler = map (mkToolButton toolSelectHandler) tools
 
-mkToolButton :: EventCollection -> EditingTool -> UI Element
-mkToolButton eventCollection tool = do
+mkToolButton :: Handler EditingTool -> EditingTool -> UI Element
+mkToolButton toolSelectHandler tool = do
     btn <- UI.button # set text (show tool)
-    on UI.click btn $ \_ -> liftIO $ (toolSelectHandler eventCollection) tool
+    on UI.click btn $ \_ -> liftIO $ toolSelectHandler tool
     return btn
 
 mergeEvents :: [Event a] -> Event a
