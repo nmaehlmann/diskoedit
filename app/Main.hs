@@ -9,6 +9,7 @@ import qualified Level
 import qualified PNGExporter
 import TMXParser
 import BlockTable
+import EventTypes
 
 tileSize = 10
 
@@ -19,13 +20,7 @@ data EditingTool
 
 tools = [Pen, Rect]
 
-type MouseStatusData = Bool
 
-type TileSelectData = Block
-
-type RectSelection = (Maybe Level.CellPositionData, Maybe Level.CellPositionData)
-
-type UpdateCells = ([Level.CellPositionData], Block)
 
 main :: IO ()
 main = do
@@ -73,10 +68,10 @@ setup w = do
         pure toEditCellData <*> selectedTile <@> mouseEnterEvent
     
     -- event 
-    cellUpdateEvent  <- return $ mergeEvents [rectEditEvent, penEditEvent, loadEvent]
+    levelUpdateEvent  <- return $ mergeEvents [rectEditEvent, penEditEvent, loadEvent]
     
     -- behaviour representing the level which is currently edited
-    currentLevel <- accumB Level.empty $ (pure editLevel) <@> cellUpdateEvent
+    currentLevel <- accumB Level.empty $ (pure Level.editLevel) <@> levelUpdateEvent
 
     btnSave <- UI.button # set text "save"
     on UI.click btnSave $ \_ ->
@@ -89,21 +84,17 @@ setup w = do
         liftIO $ do
             lvlFile <- readFile "generated/map.tmx"
             forM_ (toUpdates (dropSpaces lvlFile)) loadEventHandler
-    --cellPreparer <- return (createCellPreparer mouseStatusEventHandler mouseEnterEventHandler cellUpdateEvent)
 
-    blockTable <- createTable mouseStatusEventHandler mouseEnterEventHandler cellUpdateEvent
+    blockTable <- createTable mouseStatusEventHandler mouseEnterEventHandler levelUpdateEvent
     getBody w #+ [return blockTable] #+ mkTileButtons tileSelectEventHandler #+ [return btnLoad, return btnSave] #+
         mkToolButtons toolSelectEventHandler
     flushCallBuffer
 
-toEditCellData :: Block -> Level.CellPositionData -> Level.CellUpdate
+toEditCellData :: Block -> Level.CellPosition -> Level.LevelUpdate
 toEditCellData b p = ([p], b)
 
-toEditCellData2 :: Block -> [Level.CellPositionData] -> Level.CellUpdate
+toEditCellData2 :: Block -> [Level.CellPosition] -> Level.LevelUpdate
 toEditCellData2 b p = (p, b)
-
-editLevel :: Level.CellUpdate -> Level.Level -> Level.Level
-editLevel (cellPositions, blockType) lvl = foldr (\singelPos -> Map.insert singelPos blockType) lvl cellPositions
 
 mkTileButtons :: Handler TileSelectData -> [UI Element]
 mkTileButtons tileSelectHandler = map (mkTileButton tileSelectHandler) allBlocks
@@ -129,17 +120,17 @@ mergeEvents = foldr (unionWith pickFirst) never
 pickFirst :: a -> a -> a
 pickFirst a _ = a
 
-calculateCellPositions :: Level.CellPositionData -> Level.CellPositionData -> [Level.CellPositionData]
+calculateCellPositions :: Level.CellPosition -> Level.CellPosition -> [Level.CellPosition]
 calculateCellPositions (x1, y1) (x2, y2) =
     [(x, y) | x <- fromTo (min x1 x2) (max x1 x2), y <- fromTo (min y1 y2) (max y1 y2)]
   where
     fromTo a b = take (b - a + 1) [a ..]
 
-accumRectSelection :: Level.CellPositionData -> RectSelection -> RectSelection
+accumRectSelection :: Level.CellPosition -> RectSelection -> RectSelection
 accumRectSelection newPos ((Just x), Nothing) = ((Just x), (Just newPos))
 accumRectSelection newPos _ = ((Just newPos), Nothing)
 
-calculateCellPositionsFromEvent :: RectSelection -> Maybe [Level.CellPositionData]
+calculateCellPositionsFromEvent :: RectSelection -> Maybe [Level.CellPosition]
 calculateCellPositionsFromEvent (p1, p2) = calculateCellPositions <$> p1 <*> p2
 
 

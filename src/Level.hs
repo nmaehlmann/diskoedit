@@ -7,9 +7,9 @@ import Block
 
 type Level = (Map.Map (Int, Int) Block)
 
-type CellPositionData = (Int, Int)
+type CellPosition = (Int, Int)
 
-type CellUpdate = ([CellPositionData], Block)
+type LevelUpdate = ([CellPosition], Block)
 
 width :: Int
 width = 74
@@ -29,3 +29,6 @@ setBlock = Map.insert
 
 empty :: Level
 empty = foldr (flip Map.insert Air) Map.empty allCellPositions
+
+editLevel :: LevelUpdate -> Level -> Level
+editLevel (cellPositions, blockType) lvl = foldr (\singelPos -> Map.insert singelPos blockType) lvl cellPositions

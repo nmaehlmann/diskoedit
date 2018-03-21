@@ -13,7 +13,7 @@ tileParser = between (normString "<tile gid=\"") (normString "\"/>\n") nat
 tMXprefix = "<?xml version=\"1.0\" encoding=\"UTF-8\"?> \n <data>"
 tMXpostfix = "</data>"
 
-toUpdates :: String -> [CellUpdate]
+toUpdates :: String -> [Level.LevelUpdate]
 toUpdates lvlFile = map merge groupedTiles
     where (Right tileList) = parse allTiles "" (dropSpaces lvlFile)
           indexedTileList = zip (map fromBlockNumber tileList) allCellPositions 
@@ -21,7 +21,7 @@ toUpdates lvlFile = map merge groupedTiles
 
 normString = string . dropSpaces
 
-merge :: [(Block, CellPositionData)] -> CellUpdate
+merge :: [(Block, CellPosition)] -> Level.LevelUpdate
 merge ((b,p):pairs) = (p : map snd pairs,b)
 
 toTMX :: Level -> String
