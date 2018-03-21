@@ -10,16 +10,10 @@ import qualified PNGExporter
 import TMXParser
 import BlockTable
 import EventTypes
+import Buttons
 
 tileSize = 10
 
-data EditingTool
-    = Pen
-    | Rect
-    deriving (Show, Eq)
-
-allTools :: [EditingTool]    
-allTools = [Pen, Rect]
 
 main :: IO ()
 main = do
@@ -74,21 +68,13 @@ setup w = do
     -- behaviour representing the level which is currently edited
     currentLevel <- accumB Level.empty $ (pure Level.editLevel) <@> levelUpdateEvent
 
-    btnSave <- UI.button # set text "save"
-    on UI.click btnSave $ \_ ->
-        liftIO $ do
-            lvl <- currentValue currentLevel
-            writeFile "generated/map.tmx" $ toTMX lvl
-            PNGExporter.saveLevelAsPNG "generated/result.png" lvl
-    btnLoad <- UI.button # set text "load"
-    on UI.click btnLoad $ \_ ->
-        liftIO $ do
-            lvlFile <- readFile "generated/map.tmx"
-            forM_ (toUpdates (dropSpaces lvlFile)) loadEventHandler
+    getBody w 
+        #+ (singleton (createTable mouseStatusEventHandler mouseEnterEventHandler levelUpdateEvent))
+        #+ createTileButtons tileSelectEventHandler
+        #+ createToolButtons toolSelectEventHandler
+        #+ (singleton (createLoadButton loadEventHandler "generated"))
+        #+ (singleton (createSaveButton currentLevel "generated"))
 
-    blockTable <- createTable mouseStatusEventHandler mouseEnterEventHandler levelUpdateEvent
-    getBody w #+ [return blockTable] #+ mkTileButtons tileSelectEventHandler #+ [return btnLoad, return btnSave] #+
-        mkToolButtons toolSelectEventHandler
     flushCallBuffer
 
 singleton :: a -> [a]
@@ -96,24 +82,6 @@ singleton = pure
 
 positionsToLevelUpdate :: Block -> [Level.CellPosition] -> Level.LevelUpdate
 positionsToLevelUpdate b p = (p, b)
-
-mkTileButtons :: Handler TileSelectData -> [UI Element]
-mkTileButtons tileSelectHandler = map (mkTileButton tileSelectHandler) allBlocks
-
-mkTileButton :: Handler TileSelectData -> Block -> UI Element
-mkTileButton tileSelectHandler blockType = do
-    btn <- UI.canvas # set UI.height (tileSize * 3) # set UI.width (tileSize * 3) #. toCss blockType
-    on UI.click btn $ \_ -> liftIO $ tileSelectHandler blockType
-    return btn
-
-mkToolButtons :: Handler EditingTool -> [UI Element]
-mkToolButtons toolSelectHandler = map (mkToolButton toolSelectHandler) allTools
-
-mkToolButton :: Handler EditingTool -> EditingTool -> UI Element
-mkToolButton toolSelectHandler tool = do
-    btn <- UI.button # set text (show tool)
-    on UI.click btn $ \_ -> liftIO $ toolSelectHandler tool
-    return btn
 
 mergeEvents :: [Event a] -> Event a
 mergeEvents = foldr (unionWith pickFirst) never
@@ -133,5 +101,5 @@ rectangleToPositions :: RectSelection -> [Level.CellPosition]
 rectangleToPositions (BothBoundsSpecified b1 b2) = boundsToPositions b1 b2
 rectangleToPositions _ = []
 
-
+isTool :: Functor f => f EditingTool -> EditingTool -> f Bool
 selectedTool `isTool` tool = fmap (== tool) selectedTool 

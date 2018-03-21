@@ -12,4 +12,11 @@ data RectSelection
     | OneBoundSpecified Level.CellPosition
     | BothBoundsSpecified Level.CellPosition
                           Level.CellPosition
-        
+
+data EditingTool
+    = Pen
+    | Rect
+    deriving (Show, Eq)
+    
+allTools :: [EditingTool]    
+allTools = [Pen, Rect]
