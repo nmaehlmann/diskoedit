@@ -8,6 +8,7 @@ import Block
 import qualified Level
 import qualified PNGExporter
 import TMXParser
+import BlockTable
 
 tileSize = 10
 
@@ -32,53 +33,68 @@ main = do
     startGUI defaultConfig {jsStatic = Just static, jsCallBufferMode = BufferRun} setup
 
 setup :: Window -> UI ()
-setup w =
-    void $ do
-        (mouseStatusEvent, mouseStatusEventHandler) <- liftIO $ newEvent
-        (mouseEnterEvent, mouseEnterEventHandler) <- liftIO $ newEvent
-        (tileSelectEvent, tileSelectEventHandler) <- liftIO $ newEvent
-        (toolSelectEvent, toolSelectEventHandler) <- liftIO $ newEvent
-        (loadEvent, loadEventHandler) <- liftIO $ newEvent
-        selectedTileBehaviour <- stepper Solid tileSelectEvent
-        selectedToolBehaviour <- stepper Pen toolSelectEvent
-        mouseStatusBehavior <- stepper False mouseStatusEvent
-        accumulatedRectSelection <-
-            accumE (Nothing, Nothing) $
-            pure accumRectSelection <@>
-            (whenE mouseStatusBehavior (whenE (pure (== Rect) <*> selectedToolBehaviour) mouseEnterEvent))
-        cellRectEvent <- return $ filterJust $ apply (pure calculateCellPositionsFromEvent) accumulatedRectSelection
-        rectEditEvent <-
-            return $
-            whenE mouseStatusBehavior $
-            whenE (pure (== Rect) <*> selectedToolBehaviour) $
-            pure toEditCellData2 <*> selectedTileBehaviour <@> cellRectEvent
-        penEditEvent <-
-            return $
-            whenE mouseStatusBehavior $
-            whenE (pure (== Pen) <*> selectedToolBehaviour) $
-            pure toEditCellData <*> selectedTileBehaviour <@> mouseEnterEvent
-        editCellDataEvent <- return $ mergeEvents [rectEditEvent, penEditEvent, loadEvent]
-        accumulatedLevelUpdate <- accumE Level.empty $ (pure editLevel) <@> editCellDataEvent
-        currentLevelBehaviour <- stepper Level.empty accumulatedLevelUpdate
-        onEvent tileSelectEvent $ \tile -> do liftIO $ putStrLn $ toCss tile
+setup w = do
+    
+    -- set title
+    return w # set title "Editor"
+    -- set css styling
+    UI.addStyleSheet w "editor.css"
 
-        btnSave <- UI.button # set text "save"
-        on UI.click btnSave $ \_ ->
-            liftIO $ do
-                lvl <- currentValue currentLevelBehaviour
-                writeFile "generated/map.tmx" $ toTMX lvl
-                PNGExporter.saveLevelAsPNG "generated/result.png" lvl
-        btnLoad <- UI.button # set text "load"
-        on UI.click btnLoad $ \_ ->
-            liftIO $ do
-                lvlFile <- readFile "generated/map.tmx"
-                forM_ (toUpdates (dropSpaces lvlFile)) loadEventHandler
-        return w # set title "Editor"
-        UI.addStyleSheet w "editor.css"
-        cellPreparer <- return (createCellPreparer mouseStatusEventHandler mouseEnterEventHandler editCellDataEvent)
-        getBody w #+ [mkTable cellPreparer] #+ mkTileButtons tileSelectEventHandler #+ [return btnLoad, return btnSave] #+
-            mkToolButtons toolSelectEventHandler
-        flushCallBuffer
+    -- create events
+    (mouseStatusEvent, mouseStatusEventHandler) <- liftIO $ newEvent
+    (mouseEnterEvent, mouseEnterEventHandler) <- liftIO $ newEvent
+    (tileSelectEvent, tileSelectEventHandler) <- liftIO $ newEvent
+    (toolSelectEvent, toolSelectEventHandler) <- liftIO $ newEvent
+    (loadEvent, loadEventHandler) <- liftIO $ newEvent
+
+    -- behavior representing the selected tile
+    selectedTile <- stepper Solid tileSelectEvent
+
+    -- behavior representing the selected tool
+    selectedTool <- stepper Pen toolSelectEvent
+
+    -- behavior representing the mouse status
+    mouseDown <- stepper False mouseStatusEvent
+
+    accumulatedRectSelection <-
+        accumE (Nothing, Nothing) $
+        pure accumRectSelection <@>
+        (whenE mouseDown (whenE (pure (== Rect) <*> selectedTool) mouseEnterEvent))
+    cellRectEvent <- return $ filterJust $ apply (pure calculateCellPositionsFromEvent) accumulatedRectSelection
+    rectEditEvent <-
+        return $
+        whenE mouseDown $
+        whenE (pure (== Rect) <*> selectedTool) $
+        pure toEditCellData2 <*> selectedTile <@> cellRectEvent
+    penEditEvent <-
+        return $
+        whenE mouseDown $
+        whenE (pure (== Pen) <*> selectedTool) $
+        pure toEditCellData <*> selectedTile <@> mouseEnterEvent
+    
+    -- event 
+    cellUpdateEvent  <- return $ mergeEvents [rectEditEvent, penEditEvent, loadEvent]
+    
+    -- behaviour representing the level which is currently edited
+    currentLevel <- accumB Level.empty $ (pure editLevel) <@> cellUpdateEvent
+
+    btnSave <- UI.button # set text "save"
+    on UI.click btnSave $ \_ ->
+        liftIO $ do
+            lvl <- currentValue currentLevel
+            writeFile "generated/map.tmx" $ toTMX lvl
+            PNGExporter.saveLevelAsPNG "generated/result.png" lvl
+    btnLoad <- UI.button # set text "load"
+    on UI.click btnLoad $ \_ ->
+        liftIO $ do
+            lvlFile <- readFile "generated/map.tmx"
+            forM_ (toUpdates (dropSpaces lvlFile)) loadEventHandler
+    --cellPreparer <- return (createCellPreparer mouseStatusEventHandler mouseEnterEventHandler cellUpdateEvent)
+
+    blockTable <- createTable mouseStatusEventHandler mouseEnterEventHandler cellUpdateEvent
+    getBody w #+ [return blockTable] #+ mkTileButtons tileSelectEventHandler #+ [return btnLoad, return btnSave] #+
+        mkToolButtons toolSelectEventHandler
+    flushCallBuffer
 
 toEditCellData :: Block -> Level.CellPositionData -> Level.CellUpdate
 toEditCellData b p = ([p], b)
@@ -88,31 +104,6 @@ toEditCellData2 b p = (p, b)
 
 editLevel :: Level.CellUpdate -> Level.Level -> Level.Level
 editLevel (cellPositions, blockType) lvl = foldr (\singelPos -> Map.insert singelPos blockType) lvl cellPositions
-
-mkTable :: CellPreparer -> UI Element
-mkTable eventCollection = UI.table #+ map (\y -> mkTableRow eventCollection y) [0 .. Level.height - 1]
-
-mkTableRow :: CellPreparer -> Int -> UI Element
-mkTableRow eventCollection y = UI.tr #+ map (\x -> mkCell eventCollection (x, y)) [0 .. Level.width - 1]
-
-mkCell :: CellPreparer -> (Int, Int) -> UI Element
-mkCell cellPreparer cellPos = do
-    cell <- UI.td # set UI.height tileSize # set UI.width tileSize #. "tile" #. (toCss Air)
-    cellPreparer cell cellPos
-
-
-type CellPreparer = Element -> (Int, Int) -> UI Element
-
-createCellPreparer :: Handler MouseStatusData -> Handler Level.CellPositionData -> Event UpdateCells -> CellPreparer
-createCellPreparer mouseStatusHandler mousePositionHandler updateEvent = \cell cellPos -> do
-    on UI.mousedown cell $ \_ -> do
-        liftIO $ mouseStatusHandler True
-        liftIO $ mousePositionHandler cellPos
-    on UI.mouseup cell $ \_ -> liftIO $ mouseStatusHandler False
-    on UI.hover cell $ \_ -> liftIO $ mousePositionHandler cellPos
-    onEvent updateEvent $ \(eventPositions, blockType) -> do
-        when (elem cellPos eventPositions) $ void $ (element cell) #. (toCss blockType)
-    return cell
 
 mkTileButtons :: Handler TileSelectData -> [UI Element]
 mkTileButtons tileSelectHandler = map (mkTileButton tileSelectHandler) allBlocks
