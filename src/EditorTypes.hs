@@ -16,7 +16,7 @@ data RectSelection
 data EditingTool
     = Pen
     | Rect
-    deriving (Show, Eq)
+    deriving (Show, Eq, Ord)
     
 allTools :: [EditingTool]    
 allTools = [Pen, Rect]

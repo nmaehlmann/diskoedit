@@ -1,10 +1,8 @@
 body {
   background: #8076ed;
-  color: #ccc;
   font-family: ubuntu, sans-serif;
   font-size: 14px;
   padding-top: 1em;
-  text-shadow: #000 3px 1px 3px;
 }
 
 h1 {
@@ -19,8 +17,29 @@ h2 {
 }
 .view-source { float: right }
 
+
+select {
+  overflow-y: hidden;
+  background: #8076ed;
+  outline: none;
+  width: 100px;
+
+  border: 1px solid white;
+}
+
+
+option:hover,
+option:focus,
+option:active,
+option:checked,
+option::selection {
+  box-shadow: 0 0 10px 100px rgb(101, 168, 255) inset;
+
+}
+
 table {
   border-collapse: collapse;
+
 }
 th, td, .table-row, .table-cell {
   padding: 0px 0px 0px 0px;
@@ -77,3 +96,26 @@ th, td, .table-row, .table-cell {
     border: 1px solid white;
 }
 
+
+.editorContent {
+  display: flex;
+  width: 800px;
+  margin-left: auto; 
+  margin-right: auto;
+}
+.editor {
+  flex: 0 0 95%;
+
+  border: 1px solid white;
+}
+.sidebar {
+  flex: 1;
+  padding: 5px;
+}
+
+button{
+  background-color: #8076ed;
+  border: 1px solid white;
+  color: white;
+  width: 100px;
+}

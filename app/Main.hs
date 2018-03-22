@@ -7,6 +7,7 @@ import EditorTypes
 import Buttons
 import System.Environment (getArgs)
 import System.IO
+import qualified Graphics.UI.Threepenny.Widgets as Widgets
 
 main :: IO ()
 main = do
@@ -27,15 +28,10 @@ setup w = do
     -- create events
     (mouseStatusEvent, mouseStatusEventHandler) <- liftIO $ newEvent
     (mouseEnterEvent, mouseEnterEventHandler) <- liftIO $ newEvent
-    (tileSelectEvent, tileSelectEventHandler) <- liftIO $ newEvent
-    (toolSelectEvent, toolSelectEventHandler) <- liftIO $ newEvent
     (loadEvent, loadEventHandler) <- liftIO $ newEvent
-
-    -- behavior representing the selected tile
-    selectedTile <- stepper Solid tileSelectEvent
-
-    -- behavior representing the selected tool
-    selectedTool <- stepper Pen toolSelectEvent
+    
+    (tileListBox, selectedTile) <- createListBox allBlocks
+    (toolListBox, selectedTool) <- createListBox allTools
 
     -- behavior representing the mouse status
     mouseDown <- stepper False mouseStatusEvent
@@ -64,12 +60,23 @@ setup w = do
     -- behaviour representing the level which is currently edited
     currentLevel <- accumB Level.empty $ (pure Level.editLevel) <@> levelUpdateEvent
 
+    editorTable <- createTable mouseStatusEventHandler mouseEnterEventHandler levelUpdateEvent
+        #. "editor"
+
+    sideBar <- UI.div
+        #. "sidebar"
+        #+ (singleton (UI.p #+ [label "tiles:"]))    
+        #+ (singleton (UI.p #+ [return tileListBox]))    
+        #+ (singleton (UI.p #+ [label "tools:"]))    
+        #+ (singleton (UI.p #+ [return toolListBox]))    
+        #+ (singleton (UI.p #+ [createLoadButton loadEventHandler "generated"]))
+        #+ (singleton (UI.p #+ [createSaveButton currentLevel "generated"]))
+    
+    editorContent <- UI.div #. "editorContent"
+        #+ map return [editorTable, sideBar]
+    
     getBody w 
-        #+ (singleton (createTable mouseStatusEventHandler mouseEnterEventHandler levelUpdateEvent))
-        #+ createTileButtons tileSelectEventHandler
-        #+ createToolButtons toolSelectEventHandler
-        #+ (singleton (createLoadButton loadEventHandler "generated"))
-        #+ (singleton (createSaveButton currentLevel "generated"))
+        #+ singleton (return editorContent)
 
     flushCallBuffer
 
@@ -99,3 +106,20 @@ rectangleToPositions _ = []
 isTool :: Functor f => f EditingTool -> EditingTool -> f Bool
 selectedTool `isTool` tool = fmap (== tool) selectedTool
 
+
+display :: Show a => a -> UI Element
+display tool = do
+    lbl <- UI.label # set text (show tool)
+    return lbl
+
+createListBox :: (Show a, Ord a) => [a] -> UI (Element, Behavior a)
+createListBox elements@(first:_) = do
+    listBox <- Widgets.listBox (pure elements) (pure (Just first)) (pure display)
+    selectedElement <- stepper first $ filterJust $ Widgets.rumors $ Widgets.userSelection listBox
+    listBoxElement <- UI.element listBox 
+        # set UI.size (show (length elements))
+        # set UI.width 40
+    return (listBoxElement, selectedElement)
+
+label :: String -> UI Element
+label labelText = UI.label # set UI.text labelText
