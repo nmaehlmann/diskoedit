@@ -5,10 +5,16 @@ import qualified Level
 import BlockTable
 import EditorTypes
 import Buttons
+import System.Environment (getArgs)
+import System.IO
 
 main :: IO ()
 main = do
-    startGUI defaultConfig {jsStatic = Just "static", jsCallBufferMode = BufferRun} setup
+    hSetBuffering stdout LineBuffering
+    args <- getArgs
+    startGUI defaultConfig {jsStatic = Just "static", jsCallBufferMode = BufferRun, jsPort = getPort args} setup
+    where getPort [] = Nothing
+          getPort (port:_) = Just (read port)
 
 setup :: Window -> UI ()
 setup w = do
@@ -91,4 +97,5 @@ rectangleToPositions (BothBoundsSpecified b1 b2) = boundsToPositions b1 b2
 rectangleToPositions _ = []
 
 isTool :: Functor f => f EditingTool -> EditingTool -> f Bool
-selectedTool `isTool` tool = fmap (== tool) selectedTool 
+selectedTool `isTool` tool = fmap (== tool) selectedTool
+
