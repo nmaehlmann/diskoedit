@@ -7,7 +7,7 @@ import Control.Monad
 import qualified Graphics.UI.Threepenny as UI
 import Graphics.UI.Threepenny.Core
 import qualified Level
-import EventTypes
+import EditorTypes
 
 type CellPreparer = Element -> (Int, Int) -> UI Element
 

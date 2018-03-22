@@ -1,4 +1,4 @@
-module EventTypes where
+module EditorTypes where
 
 import Block
 import qualified Level

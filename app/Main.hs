@@ -1,19 +1,10 @@
-{-# LANGUAGE RankNTypes #-}
-
-import Control.Monad
-import qualified Data.Map as Map
 import qualified Graphics.UI.Threepenny as UI
 import Graphics.UI.Threepenny.Core
 import Block
 import qualified Level
-import qualified PNGExporter
-import TMXParser
 import BlockTable
-import EventTypes
+import EditorTypes
 import Buttons
-
-tileSize = 10
-
 
 main :: IO ()
 main = do
@@ -62,7 +53,7 @@ setup w = do
     -- merges pen and rectangle edits and adds the currently selected tile
     userEditEvent <- return $ positionsToLevelUpdate <$> selectedTile <@> (mergeEvents [penEditEvent, rectEditEvent])
 
-    -- event 
+    -- an event carrying prepocessed data to update the level and frontend
     levelUpdateEvent  <- return $ filterE (not . null) $ mergeEvents [userEditEvent, loadEvent]
     
     -- behaviour representing the level which is currently edited

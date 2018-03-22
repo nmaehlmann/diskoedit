@@ -4,9 +4,9 @@ import qualified Graphics.UI.Threepenny as UI
 import Graphics.UI.Threepenny.Core
 import Block
 import qualified Level
-import qualified PNGExporter
-import TMXParser
-import EventTypes
+import qualified PNGIO
+import qualified TMXIO
+import EditorTypes
     
 createSaveButton :: Behavior Level.Level -> String -> UI Element
 createSaveButton currentLevel filepath = do
@@ -14,8 +14,8 @@ createSaveButton currentLevel filepath = do
     on UI.click btnSave $ \_ ->
         liftIO $ do
             lvl <- currentValue currentLevel
-            writeFile (filepath ++ "/map.tmx") $ toTMX lvl
-            PNGExporter.saveLevelAsPNG (filepath ++ "/result.png") lvl
+            TMXIO.saveLevelToTMX (filepath ++ "/map.tmx")  lvl
+            PNGIO.saveLevelAsPNG (filepath ++ "/result.png") lvl
     return btnSave
 
 createLoadButton :: Handler Level.LevelUpdate -> String -> UI Element
@@ -23,8 +23,8 @@ createLoadButton loadEventHandler filepath = do
     btnLoad <- UI.button # set text "load"
     on UI.click btnLoad $ \_ ->
         liftIO $ do
-            lvlFile <- readFile (filepath ++ "/map.tmx")
-            forM_ (toUpdates (dropSpaces lvlFile)) loadEventHandler
+            updates <- TMXIO.loadLevelUpdatesFromTMX (filepath ++ "/map.tmx")
+            forM_ updates loadEventHandler
     return btnLoad
 
 createTileButtons :: Handler TileSelectData -> [UI Element]
