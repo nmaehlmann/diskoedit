@@ -79,9 +79,8 @@ mergeEvents = foldr (unionWith pickFirst) never
 
 boundsToPositions :: Level.CellPosition -> Level.CellPosition -> [Level.CellPosition]
 boundsToPositions (x1, y1) (x2, y2) =
-    [(x, y) | x <- fromTo (min x1 x2) (max x1 x2), y <- fromTo (min y1 y2) (max y1 y2)]
-  where
-    fromTo a b = take (b - a + 1) [a ..]
+    [(x, y) | x <- range (min x1 x2) (max x1 x2), y <- range (min y1 y2) (max y1 y2)]
+  where range a b = take (b - a + 1) [a ..]
 
 accumRectangle :: Level.CellPosition -> RectSelection -> RectSelection
 accumRectangle bound2 (OneBoundSpecified bound1) = BothBoundsSpecified bound1 bound2
