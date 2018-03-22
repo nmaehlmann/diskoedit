@@ -1,6 +1,5 @@
 # diskoedit
-
-FRP Map editor for the game Diskophoros:  
+Functional Reactive Programming experiment resulting in a map editor for the game Diskophoros:  
 Web: http://diskophoros.nikolikesco.de/ | Twitter: https://twitter.com/nmaehlmann
 
 ### Technologies used:
