@@ -12,7 +12,7 @@ loadLevelUpdatesFromTMX filepath = do
     lvlFile <- readFile filepath
     return $ toUpdates (dropSpaces lvlFile)
 
-saveLevelToTMX :: String -> Level.Level -> IO ()
+saveLevelToTMX :: FilePath -> Level.Level -> IO ()
 saveLevelToTMX filepath lvl = do
     writeFile filepath $ toTMX lvl  
 

@@ -10,7 +10,7 @@ import Block
 blocksize :: Int
 blocksize = 10
 
-saveLevelAsPNG :: String -> Level.Level -> IO ()
+saveLevelAsPNG :: FilePath -> Level.Level -> IO ()
 saveLevelAsPNG filename lvl = do
     mapping <- loadTileImages
     let png = toPNG mapping lvl

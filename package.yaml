@@ -27,6 +27,7 @@ dependencies:
 - parsec-numbers
 - threepenny-gui
 - JuicyPixels
+- directory
 
 library:
   source-dirs: src
