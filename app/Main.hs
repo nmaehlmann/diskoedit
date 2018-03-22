@@ -30,6 +30,7 @@ setup w = do
     (mouseEnterEvent, mouseEnterEventHandler) <- liftIO $ newEvent
     (loadEvent, loadEventHandler) <- liftIO $ newEvent
     
+    -- tile and tool chooser as (element, behavior)
     (tileListBox, selectedTile) <- createListBox allBlocks
     (toolListBox, selectedTool) <- createListBox allTools
 
@@ -112,6 +113,8 @@ display tool = do
     lbl <- UI.label # set text (show tool)
     return lbl
 
+-- takes a list of elements and creates a listbox out of them, 
+-- as well as a behavior to observe the current selection
 createListBox :: (Show a, Ord a) => [a] -> UI (Element, Behavior a)
 createListBox elements@(first:_) = do
     listBox <- Widgets.listBox (pure elements) (pure (Just first)) (pure display)
