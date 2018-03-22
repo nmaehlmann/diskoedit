@@ -8,8 +8,7 @@ import Buttons
 
 main :: IO ()
 main = do
-    static <- return "static"
-    startGUI defaultConfig {jsStatic = Just static, jsCallBufferMode = BufferRun} setup
+    startGUI defaultConfig {jsStatic = Just "static", jsCallBufferMode = BufferRun} setup
 
 setup :: Window -> UI ()
 setup w = do
@@ -50,7 +49,7 @@ setup w = do
         whenE mouseDown $
         whenE (selectedTool `isTool` Pen) mouseEnterEvent        
 
-    -- merges pen and rectangle edits and adds the currently selected tile
+    -- an event merging pen and rectangle edits and adds the currently selected tile
     userEditEvent <- return $ positionsToLevelUpdate <$> selectedTile <@> (mergeEvents [penEditEvent, rectEditEvent])
 
     -- an event carrying prepocessed data to update the level and frontend

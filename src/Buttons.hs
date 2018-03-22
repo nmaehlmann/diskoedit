@@ -1,4 +1,4 @@
-module Buttons where
+module Buttons (createLoadButton, createSaveButton, createTileButtons, createToolButtons) where
 import Control.Monad
 import qualified Graphics.UI.Threepenny as UI
 import Graphics.UI.Threepenny.Core
@@ -23,6 +23,7 @@ createLoadButton loadEventHandler filepath = do
     btnLoad <- UI.button # set text "load"
     on UI.click btnLoad $ \_ ->
         liftIO $ do
+            -- loading a level is just generating and firing update events from a file 
             updates <- TMXIO.loadLevelUpdatesFromTMX (filepath ++ "/map.tmx")
             forM_ updates loadEventHandler
     return btnLoad
