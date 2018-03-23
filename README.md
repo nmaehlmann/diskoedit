@@ -8,12 +8,15 @@ Web: http://diskophoros.nikolikesco.de/ | Twitter: https://twitter.com/nmaehlman
 * parsec for parsing TMX files: https://hackage.haskell.org/package/parsec
 * Electron for faster UI: https://electronjs.org/
 
-### Building and running with electron
+### GIF preview:
+![Map Editor GIF](http://u.cubeupload.com/nikolas/6HteTN.gif)
+
+### Building and running with electron:
     npm install
     stack install --local-bin-path build
     ./node_modules/.bin/electron electron.js
     
-### Building and running without electron (slower UI but does not require npm)
+### Building and running without electron (slower UI but does not require npm):
     stack build
     stack exec diskophoros-map-editor-exe
     
