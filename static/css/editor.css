@@ -99,12 +99,12 @@ th, td, .table-row, .table-cell {
 
 .editorContent {
   display: flex;
-  width: 800px;
+  width: 850px;
   margin-left: auto; 
   margin-right: auto;
 }
 .editor {
-  flex: 0 0 95%;
+  flex: 0 0 100%;
 
   border: 1px solid white;
 }

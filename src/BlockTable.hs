@@ -38,7 +38,10 @@ createCellPreparer mouseStatusHandler mousePositionHandler updateEvent =
             liftIO $ mousePositionHandler cellPos
          
         on UI.mouseup cell $ \_ -> liftIO $ mouseStatusHandler False
+
         on UI.hover cell $ \_ -> liftIO $ mousePositionHandler cellPos
+
         onEvent updateEvent $ \(eventPositions, blockType) ->
             when (elem cellPos eventPositions) $ void $ (element cell) #. (toCss blockType)
+            
         return cell

@@ -21,7 +21,7 @@ setup :: Window -> UI ()
 setup w = do
     
     -- set title
-    return w # set title "Editor"
+    return w # set title "Diskophoros Map Editor"
     -- set css styling
     UI.addStyleSheet w "editor.css"
 

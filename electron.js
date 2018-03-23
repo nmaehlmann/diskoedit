@@ -62,10 +62,13 @@ freeport((err, port) => {
   function createWindow() {
     // Create the browser window.
     win = new BrowserWindow({
-      width: 1000,
+      width: 900,
       height: 570,
       webPreferences: { nodeIntegration: true },
     });
+
+    // disable menu
+    win.setMenu(null);
 
     console.log(`Loading URL: ${url}`);
     win.loadURL(url);
