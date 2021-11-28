@@ -1,6 +1,6 @@
 # diskoedit
 Functional Reactive Programming experiment resulting in a map editor for the game Diskophoros:  
-Web: http://diskophoros.nikolikesco.de/ | Twitter: https://twitter.com/nmaehlmann
+Web: https://nmaehlmann.itch.io/diskophoros | Twitter: https://twitter.com/nmaehlmann
 
 ### Technologies used:
 * Threepenny-GUI for UI and Functional Reactive Programming: https://wiki.haskell.org/Threepenny-gui
